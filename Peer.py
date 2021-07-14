@@ -1,7 +1,8 @@
 import socket
-from Admin import port_admin, localHost_admin
 import threading
 
+localHost_admin = '127.0.0.1'
+port_admin = 23000
 peer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 peer.connect((localHost_admin, port_admin))
 
@@ -26,11 +27,11 @@ def sending():
     start_msg = input()
     start_msg_arr = start_msg.split()
     ID, listening_port = start_msg_arr[2], start_msg_arr[-1]
-    sending_port = listening_port + 1
-    conn_msg = str(ID) + "REQUESTS FOR CONNECTING TO NETWORK ON PORT" + str(listening_port)
+    sending_port = int(listening_port) + 1
+    conn_msg = str(ID) + " REQUESTS FOR CONNECTING TO NETWORK ON PORT " + str(listening_port)
     peer.send(conn_msg.encode("ascii"))
-    while True:
-        pass
+    # while True:
+    #     pass
 
 
 receiving_thread = threading.Thread(target=receiving)

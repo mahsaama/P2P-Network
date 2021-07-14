@@ -25,7 +25,6 @@ def handle(peer):
 
 
 while True:
-    print("*****")
     peer, address = admin.accept()
     print("Connected with:", address)
     msg = peer.recv(1024).decode("ascii")
@@ -36,9 +35,9 @@ while True:
         data = (id, port)
         parent = network.insert_node(network.root, data)
         if parent is None:
-            admin_msg = "CONNECT TO" + str(-1) + "WITH PORT" + str(-1)
+            admin_msg = "CONNECT TO " + str(-1) + " WITH PORT " + str(-1)
         else:
-            admin_msg = "CONNECT TO" + str(parent.data[0]) + "WITH PORT" + str(parent.data[1])
+            admin_msg = "CONNECT TO " + str(parent.data[0]) + " WITH PORT " + str(parent.data[1])
         peer.send(admin_msg.encode("ascii"))
-        thread = threading.Thread(target=handle, args=(peer,))
-        thread.start()
+        # thread = threading.Thread(target=handle, args=(peer,))
+        # thread.start()

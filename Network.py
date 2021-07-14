@@ -9,10 +9,10 @@ class Network:
         else:
             if root.right is None:
                 root.right = Node(data, root)
-                return root.right.parent.data
+                return root.right.parent
             elif root.left is None:
                 root.left = Node(data, root)
-                return root.left.parent.data
+                return root.left.parent
             else:
                 height_left = self.get_height(root.left)
                 height_right = self.get_height(root.right)

@@ -18,24 +18,58 @@ class Client(BasePeer):
 		self.host = peer_host
 		self.listening_port = 0
 		self.id = None
+		self.known_peers = {}
+
 		# self.quit = False
+
+	def add_to_known_peers(self, id_, port=None):
+		self.known_peers[id_] = port
+
+
+	def send_packet_to_peer(self, peer_port, packet):
+		with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as peer:
+			peer.connect((self.host, peer_port))
+			dprint(f"connected to {self.host}:{peer_port}", level=2)
+			self.send_packet(peer, packet)
+
+
+	def advertise_to_parent(self, peer_id):
+		if not self.parent_port:
+			return
+		packet = Packet(PacketType.PARENT_ADVERTISE, self.id, self.parent_id, peer_id)
+		self.send_packet_to_peer(self.parent_port, packet)
 
 
 	def peer_receiving_handler(self, peer):
 		''' Receive messages from peers '''
 		while True:
 			try:
-				msg = self.receive(peer)
-				if msg == '':
+				packet = self.receive_packet(peer)
+				if not packet:
 					dprint(f"Connection to peer {peer.getpeername()} closed.")
 					peer.close()
 					break
 
-				msg_arr = msg.split()
-				if "CONNECT TO" in msg:
-					parent_id = msg_arr[2]
-					parent_port = msg_arr[-1]
-					print(parent_id, parent_port)
+				self.add_to_known_peers(packet.source)
+
+				if packet.type == PacketType.CONNECTION_REQUEST:
+					peer_port = int(packet.data)
+					self.add_to_known_peers(packet.source, peer_port)
+					self.advertise_to_parent(packet.source)
+
+				elif packet.type == PacketType.PARENT_ADVERTISE:
+					peer_id = packet.data
+					self.add_to_known_peers(peer_id)
+					self.advertise_to_parent(peer_id)
+
+
+
+			# MESSAGE 
+			# ROUTING_REQUEST
+			# ROUTING_RESPONSE
+			# PARENT_ADVERTISE
+			# ADVERTISE
+			# DESTINATION_NOT_FOUND 
 
 			except socket.error as e:
 				peer.close()
@@ -57,6 +91,9 @@ class Client(BasePeer):
 		''' Get inputs from terminal and send messages '''
 		while True:
 			msg = input()
+			if re.match('SHOW KNOWN CLIENTS', msg):
+				for p in self.known_peers.keys():
+					print(p)
 			
 
 	def start(self):
@@ -98,12 +135,9 @@ class Client(BasePeer):
 				
 				# connect to parent and send listening port to parent if it is not root
 				if self.parent_id:
-					with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as peer:
-						peer.connect((self.host, self.parent_port))
-						dprint(f"Client is connected to parent {self.host}:{self.parent_port}")
-
-						packet = Packet(PacketType.CONNECTION_REQUEST, self.id, self.parent_id, self.listening_port)
-						self.send_packet(peer, packet)
+					self.add_to_known_peers(self.parent_id, self.parent_port)
+					packet = Packet(PacketType.CONNECTION_REQUEST, self.id, self.parent_id, self.listening_port)				
+					self.send_packet_to_peer(self.parent_port, packet)
 				
 				dprint('successfully connected to network')
 				

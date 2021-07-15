@@ -53,5 +53,5 @@ class Packet:
 		self.data: str = data
 
 	def __str__(self) -> str:
-		return f"{self.type.code}|{self.destination}|{self.source}|{self.data}"
+		return f"{self.type.code}|{self.source}|{self.destination}|{self.data}"
 

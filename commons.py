@@ -1,15 +1,27 @@
 
-
 from Packet import Packet, PacketType
 
 
 LOG_LEVEL = 2	# 0 for no log, 1 for normal log, 2 for full log
 MSG_SIZE = 1024
 
-def dprint(*args, level=1):
-    if LOG_LEVEL >= level:
-        print(*args)
+class bcolors:
+	PINK = '\033[95m'
+	BLUE = '\033[94m'
+	CYAN = '\033[96m'
+	GREEN = '\033[92m'
+	ORANGE = '\033[93m'
+	RED = '\033[91m'
+	NORMAL = '\033[0m'
+	BOLD = '\033[1m'
+	UNDERLINE = '\033[4m'
 
+def dprint(*args, level=1):
+	if LOG_LEVEL >= level:
+		if level == 1:
+			print(bcolors.GREEN, *args, bcolors.NORMAL)
+		else:
+			print(bcolors.BLUE, *args, bcolors.NORMAL)
 
 class BasePeer:
 
@@ -26,8 +38,10 @@ class BasePeer:
 	def send_packet(self, socket, packet:Packet):
 		self.send(socket, packet.__str__())
 
-	def receive_packet(self, socket):
+	def receive_packet(self, socket) -> Packet:
 		msg = self.receive(socket)
+		if not msg:
+			return None
 		splited = msg.split('|')
 		packet = Packet(PacketType.get_packet_type_from_code(splited[0]), splited[1], splited[2], splited[3])
 		return packet

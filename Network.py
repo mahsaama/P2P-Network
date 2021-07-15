@@ -35,7 +35,7 @@ class Network:
         else:
             parent_node.add_child(new_node)
 
-        dprint(f"New node inserted into network with number: {node_number} id: {id_} port: {port} parent: {parent_node.id}")
+        dprint(f"New node inserted into network with number: {node_number} id: {id_} port: {port} parent: {None if not parent_node else parent_node.id}", level=2)
         return parent_node
 
     def _str_network(self, node, level=0):
@@ -45,7 +45,6 @@ class Network:
         return self._str_network(node.left, level + 1) + \
             f"{' ' * 5 * level} -> {node.data}\n" + \
             self._str_network(node.right, level + 1)
- 
  
     def __str__(self):
         return self._str_network(self.root)

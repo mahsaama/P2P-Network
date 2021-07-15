@@ -13,7 +13,6 @@ class Admin(BasePeer):
 		self.network = nt.Network()
 		self.peers = {}
 
-
 	def client_handler(self, peer):
 		try:
 			while True:
@@ -26,18 +25,29 @@ class Admin(BasePeer):
 				if re.match('(\w+) REQUESTS FOR CONNECTING TO NETWORK ON PORT (\d+)', msg):
 					msg_arr = msg.split()
 					id_, port = msg_arr[0], msg_arr[-1]
-					self.peers[id_] = peer
-					parent = self.network.insert_new_node(id_, port)
-					if parent is None:
-						admin_msg = f"CONNECT TO -1 WITH PORT -1"
+					
+					if self.get_peer_from_id(id_):
+						admin_msg = f"ID {id_} already exist"
 					else:
-						admin_msg = f"CONNECT TO {parent.id} WITH PORT {parent.port}"
+						self.peers[id_] = peer
+						parent = self.network.insert_new_node(id_, port)
+						if parent is None:
+							admin_msg = f"CONNECT TO -1 WITH PORT -1"
+						else:
+							admin_msg = f"CONNECT TO {parent.id} WITH PORT {parent.port}"
+
 					self.send(peer, admin_msg)
 
 		except socket.error as e:
 			peer.close()
 			dprint(f"Error. Peer {peer.getpeername()} shutdown.", e)
 
+
+	def get_peer_from_id(self, id_):
+		if id_ in self.peers:
+			return self.peers[id_]
+		return None
+		
 
 	def listen(self, host, port):
 		with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server: # (IPv4 , TCP)

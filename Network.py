@@ -1,6 +1,7 @@
+from commons import dprint
 
 class Network:
-    ''' Each node has an id that starts from 1. Network structure will look like this:
+    ''' Each node has an `number` that starts from 1. Network structure will look like this:
                         1
                     /       \
                 2               3
@@ -16,23 +17,26 @@ class Network:
         self.nodes_number = 1
         self.nodes = {}
 
-    def insert_new_node(self, data):
-        node_id = self.nodes_number
+    def insert_new_node(self, id_, port):
+        node_number = self.nodes_number
         self.nodes_number += 1
 
         if self.root == None:
             parent_node = None
         else:
-            parent_id = node_id // 2
-            parent_node = self.nodes[parent_id]
+            parent_number = node_number // 2
+            parent_node = self.nodes[parent_number]
 
-        new_node = Node(node_id, data, parent=parent_node)
-        self.nodes[node_id] = new_node
+        new_node = Node(node_number, id_, port, parent=parent_node)
+        self.nodes[node_number] = new_node
         
         if self.root == None:
             self.root = new_node
         else:
             parent_node.add_child(new_node)
+
+        dprint(f"New node inserted into network with number: {node_number} id: {id_} port: {port} parent: {parent_node.id}")
+        return parent_node
 
     def _str_network(self, node, level=0):
         if node is None:
@@ -42,20 +46,22 @@ class Network:
             f"{' ' * 5 * level} -> {node.data}\n" + \
             self._str_network(node.right, level + 1)
  
+ 
     def __str__(self):
         return self._str_network(self.root)
 
 
 class Node:
-    def __init__(self, id_, data, parent=None):
+    def __init__(self, number, id_, port, parent=None):
+        self.number = number
+        self.port = port
         self.id = id_
         self.parent = parent
         self.left = None
         self.right = None
-        self.data = data
 
     def add_child(self, new_node):
-        if new_node.id == self.id * 2:
+        if new_node.number == self.number * 2:
             self.left = new_node
         else:
             self.right = new_node
@@ -64,16 +70,16 @@ class Node:
         if self.left is None:
             left = None
         else:
-            left = self.left.data
+            left = self.left.id
         if self.right is None:
             right = None
         else:
-            right = self.right.data
+            right = self.right.id
         if self.parent is None:
             parent = None
         else:
-            parent = self.parent.data
-        return "Data: {}, Left Child: {}, Right Child: {}, Parent: {}".format(self.data, left, right, parent)
+            parent = self.parent.id
+        return f"Num: {self.number} ID: {self.id}, Port: {self.port},  Parent: {parent}, Left Child: {left}, Right Child: {right}"
 
 
 # n = Network()

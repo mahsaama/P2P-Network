@@ -1,11 +1,11 @@
 from enum import Enum
 import re
 
-DEBUG = True
+LOG_LEVEL = 2	# 0 for no log, 1 for normal log, 2 for full log
 MSG_SIZE = 1024
 
-def dprint(*args):
-    if DEBUG:
+def dprint(*args, level=1):
+    if LOG_LEVEL >= level:
         print(*args)
 
 
@@ -61,9 +61,16 @@ class Packet:
 		self.msg: str = msg
 
 
-class MySocket:
-	def __init__(self, socket):
-		self.socket = socket
+class BasePeer:
+
+	def send(self, socket, msg):
+		dprint(f"Send message to peer {socket.getpeername()}: {msg}", level=2)
+		socket.send(msg.encode("ascii"))
+
+	def receive(self, socket):
+		msg = socket.recv(MSG_SIZE).decode("ascii")
+		dprint(f"Got message from peer {socket.getpeername()}: {msg}")
+		return msg
 
 
 	# def send_fixed_length(self, message, desired_length = MSG_SIZE):

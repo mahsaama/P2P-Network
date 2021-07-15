@@ -1,13 +1,14 @@
 import Network as nt
 import socket
 import threading
-from commons import dprint, MSG_SIZE
+import re
+from commons import dprint, BasePeer
 
 # admin initialization
 HOST = '127.0.0.1'
 PORT = 23000
 
-class Admin:
+class Admin(BasePeer):
 	def __init__(self) -> None:
 		self.network = nt.Network()
 		self.peers = {}
@@ -16,30 +17,27 @@ class Admin:
 	def client_handler(self, peer):
 		try:
 			while True:
-				msg = peer.recv(MSG_SIZE).decode("ascii")
+				msg = self.receive(peer)
 				if msg == '':
 					dprint(f"Connection to peer {peer.getpeername()} closed.")
 					peer.close()
 					break
 
-				dprint(f"Got message from peer {peer.getpeername()}: {msg}")
-
-				if "REQUESTS FOR CONNECTING TO NETWORK ON PORT" in msg:
+				if re.match('(\w+) REQUESTS FOR CONNECTING TO NETWORK ON PORT (\d+)', msg):
 					msg_arr = msg.split()
-					id, port = msg_arr[0], msg_arr[-1]
-					self.peers[id] = peer
-					data = (id, port)
-					parent = self.network.insert_node(self.network.root, data)
+					id_, port = msg_arr[0], msg_arr[-1]
+					self.peers[id_] = peer
+					parent = self.network.insert_new_node(id_, port)
 					if parent is None:
-						admin_msg = "CONNECT TO " + str(-1) + " WITH PORT " + str(-1)
+						admin_msg = f"CONNECT TO -1 WITH PORT -1"
 					else:
-						admin_msg = "CONNECT TO " + str(parent.data[0]) + " WITH PORT " + str(parent.data[1])
-					peer.send(admin_msg.encode("ascii"))
-
+						admin_msg = f"CONNECT TO {parent.id} WITH PORT {parent.port}"
+					self.send(peer, admin_msg)
 
 		except socket.error as e:
 			peer.close()
 			dprint(f"Error. Peer {peer.getpeername()} shutdown.", e)
+
 
 	def listen(self, host, port):
 		with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server: # (IPv4 , TCP)

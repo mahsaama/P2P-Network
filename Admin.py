@@ -22,7 +22,7 @@ class Admin(BasePeer):
 					peer.close()
 					break
 
-				if re.fullmatch('(\w+) REQUESTS FOR CONNECTING TO NETWORK ON PORT (\d+)', msg):
+				if re.fullmatch('(\w+) REQUESTS FOR CONNECTING TO NETWORK ON PORT (\d+)', msg, flags=re.IGNORECASE):
 					msg_arr = msg.split()
 					id_, port = msg_arr[0], msg_arr[-1]
 					

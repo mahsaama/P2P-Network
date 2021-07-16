@@ -27,8 +27,6 @@ class Client(BasePeer):
 		self.known_peers = {} 		# dict of {peer_id: peer_port}. peer_port is None for all except children
 		self.children_subtree = {} 	# dict of {child_id: list of peer_id}
 		
-		self.sending_socket = None
-
 		# self.quit = False
 
 	def add_to_known_peers(self, id_, port=None):
@@ -37,13 +35,21 @@ class Client(BasePeer):
 			self.known_peers[id_] = port
 
 	def send_packet_to_peer(self, peer_port, packet):
+		sending_port = self.get_sending_port_from_listening_port(self.listening_port)
 		try:
-			self.send_packet(self.sending_socket, packet, (self.host, peer_port))
+			with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as peer:
+				peer.bind((self.host, sending_port))
+				peer.connect((self.host, peer_port))
+				dprint(f"connected to {self.host}:{peer_port} from port {sending_port}", level=2)
+				self.send_packet(peer, packet)
+				peer.shutdown(socket.SHUT_RDWR)
+				peer.close()
 		except OSError as e:
-			dprint(f"could not send packet: {packet} to port {peer_port}, err: {e}")
-			return False
-		return True
+			dprint(f"could not send packet: {packet} to port {peer_port} from port {sending_port}, err: {e}")
 		
+		dprint(f"connected to {self.host}:{peer_port} tamam nashot?", level=2)
+
+
 	def advertise_to_parent(self, peer_id):
 		if not self.parent_port:
 			return
@@ -58,8 +64,7 @@ class Client(BasePeer):
 	def add_to_child_subtree(self, new_peer_id, child_id):
 		dprint(f'add new peer with id {new_peer_id} to child subtree with id {child_id}', level=2)
 		if child_id not in self.children_subtree:
-			dprint(f'child {child_id} is not in child_subtree dict', level=2)
-			return
+			raise ValueError('Child_id is not in child_ids dict.')
 
 		self.children_subtree[child_id].append(new_peer_id)
 
@@ -106,19 +111,26 @@ class Client(BasePeer):
 			self.send_packet_to_peer(self.parent_port, packet)
 			return True
 		
-		not_found_packet = Packet(PacketType.DESTINATION_NOT_FOUND, self.id, packet.source, f"DESTINATION {packet.destination} NOT FOUND")
-		self.send_packet_to_peer(self.get_listen_port_from_sending_port(sender_port), not_found_packet)
+		if packet.source != self.id:
+			not_found_packet = Packet(PacketType.DESTINATION_NOT_FOUND, self.id, packet.source, f"DESTINATION {packet.destination} NOT FOUND")
+			self.send_packet_to_peer(self.get_listen_port_from_sending_port(sender_port), not_found_packet)
 			
 		dprint(f'could not route packet with source {packet.source} and destination {packet.destination}', level=3)
 		return False
 
 
-	def peer_receiving_handler(self, server):
+	def peer_receiving_handler(self, peer: socket.SocketType):
 		''' Receive messages from peers '''
+		peer_port = peer.getpeername()[1]
 		while True:
 			try:
-				packet, peer_address = self.receive_packet_udp(server)
-				peer_port = peer_address[1]
+				packet = self.receive_packet(peer)
+				if not packet:
+					dprint(f"Connection to peer {peer.getpeername()} closed.")
+					peer.close()
+					break
+
+				self.add_to_known_peers(packet.source)
 
 				# If packet is routing response we need to change it before continue
 				if packet.type == PacketType.ROUTING_RESPONSE:
@@ -136,8 +148,6 @@ class Client(BasePeer):
 				if packet.destination != '-1' and packet.destination != self.id:
 					continue
 				
-				self.add_to_known_peers(packet.source)
-
 				# If we reach here it means packet is for us
 				if packet.type == PacketType.CONNECTION_REQUEST:
 					peer_port = int(packet.data)
@@ -152,9 +162,8 @@ class Client(BasePeer):
 					self.add_to_child_subtree(peer_id, packet.source)
 
 				elif packet.type == PacketType.ADVERTISE:
-					peer_id = packet.data
-					self.add_to_known_peers(peer_id)
-					self.add_to_child_subtree(peer_id, packet.source)
+					
+					pass
 
 				elif packet.type == PacketType.ROUTING_REQUEST:
 					response_packet = Packet(PacketType.ROUTING_RESPONSE, self.id, packet.source, self.id)
@@ -169,9 +178,10 @@ class Client(BasePeer):
 				elif packet.type == PacketType.MESSAGE:
 					pass # TODO
 
-			except OSError as e:
-				dprint(f"Error", e)
-				pass
+
+			except socket.error as e:
+				peer.close()
+				dprint(f"Error. Peer {peer.getpeername()} shutdown.", e)
 
 
 	def input_handler(self):
@@ -184,44 +194,27 @@ class Client(BasePeer):
 			
 			elif re.fullmatch('ROUTE (\w+)', msg, flags=re.IGNORECASE):
 				dest_id = msg.split()[1]
-				
-				if dest_id == self.id:
-					print(self.id)
-					continue
-
 				packet = Packet(PacketType.ROUTING_REQUEST, self.id, dest_id, '')
 				self.route_packet(packet)
 
-			elif re.fullmatch('ADVERTISE (-?\w+)', msg, flags=re.IGNORECASE):
+			elif re.fullmatch('ADVERTISE (\w+)', msg, flags=re.IGNORECASE):
 				dest_id = msg.split()[1]
-				packet = Packet(PacketType.ADVERTISE, self.id, dest_id, self.id)
+				packet = Packet(PacketType.ADVERTISE, self.id, dest_id, '')
 				self.route_packet(packet)
 
 			else:
 				print("INVALID COMMAND")
 
 
-	def init_sender(self):
-		sending_port = self.get_sending_port_from_listening_port(self.listening_port)
-		try:
-			self.sending_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
-			self.sending_socket.bind((self.host, sending_port))
-		except OSError as e:
-			print(f"ERROR: could not bind sending socket to {sending_port}")
-			return False
+	def listen_handler(self, server):
+		server.listen()
+		dprint(f"Peer is listening on {self.host}:{self.listening_port}")
 
-		return True
-
-
-	# def listen_handler(self, server):
-	# 	server.listen()
-	# 	dprint(f"Peer is listening on {self.host}:{self.listening_port}")
-
-	# 	while True:
-	# 		peer, address = server.accept()
-	# 		dprint(f"Peer {address} is connected")
-	# 		thread = threading.Thread(target=self.peer_receiving_handler, args=[peer])
-	# 		thread.start()
+		while True:
+			peer, address = server.accept()
+			dprint(f"Peer {address} is connected")
+			thread = threading.Thread(target=self.peer_receiving_handler, args=[peer])
+			thread.start()
 			
 
 	def start(self):
@@ -233,15 +226,15 @@ class Client(BasePeer):
 				self.id, self.listening_port = start_msg_arr[2], int(start_msg_arr[-1])
 
 				try:
-					server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # UDP
+					server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 					server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 					server.bind((self.host, self.listening_port)) # passing zero will choose a random free port
 				except OSError:
-					print(f"ERROR: could not bind listening socket to {self.host} {self.listening_port}")
+					print(f"could not bind to {self.host} {self.listening_port}")
 					continue
 
 				# connect to admin to get parent in network
-				with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as peer: # TCP
+				with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as peer:
 					peer.connect((self.admin_host, self.admin_port))
 					dprint(f"Client is connected to admin {self.admin_host}:{self.admin_port}")
 
@@ -257,24 +250,16 @@ class Client(BasePeer):
 						print(msg)
 						continue
 
-				# start listening on desired port 
-				# thread = threading.Thread(target=self.listen_handler, args=[server])
-				# thread.start()
-
-				# start listening for incoming messages from peers
-				thread = threading.Thread(target=self.peer_receiving_handler, args=[server])
+				# start listening on desired port
+				thread = threading.Thread(target=self.listen_handler, args=[server])
 				thread.start()
-
-				# init sending socket
-				if not self.init_sender():
-					continue
 				
 				# connect to parent and send listening port to parent if it is not root
 				if self.parent_id:
 					self.add_to_known_peers(self.parent_id, self.parent_port)
 					packet = Packet(PacketType.CONNECTION_REQUEST, self.id, self.parent_id, self.listening_port)				
 					self.send_packet_to_peer(self.parent_port, packet)
-						
+				
 				dprint('successfully connected to network')
 				
 				# start listening for commands

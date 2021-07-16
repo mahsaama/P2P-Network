@@ -2,7 +2,7 @@
 from Packet import Packet, PacketType
 
 
-LOG_LEVEL = 2	# 0 for no log, 1 for normal log, 2 for full log
+LOG_LEVEL = 3	# higher number -> more log
 MSG_SIZE = 1024
 
 class bcolors:
@@ -20,8 +20,10 @@ def dprint(*args, level=1):
 	if LOG_LEVEL >= level:
 		if level == 1:
 			print(bcolors.GREEN, *args, bcolors.NORMAL)
-		else:
+		elif level == 2:
 			print(bcolors.BLUE, *args, bcolors.NORMAL)
+		else:
+			print(bcolors.PINK, *args, bcolors.NORMAL)
 
 class BasePeer:
 

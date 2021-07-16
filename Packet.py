@@ -7,11 +7,11 @@ class PacketType(Enum):
 	peers as enums. Each enum has a code, a regex pattern and description.
 	'''
 
-	def __new__(cls, value, regex, description):
+	def __new__(cls, value):
 		obj = object.__new__(cls)
 		obj._value_ = value
-		obj.pattern = re.compile(regex)
-		obj.description = description
+		# obj.pattern = re.compile(regex)
+		# obj.description = description
 		return obj
 	
 	# @property
@@ -34,15 +34,13 @@ class PacketType(Enum):
 
 	''' Packet types ''' 
 	
-	# TODO clean these
-
-	MESSAGE =   			0,	'',      				'Enter user-id'
-	ROUTING_REQUEST =     	10,	'(\w+) (.+)', 			'show message from user'
-	ROUTING_RESPONSE =     	11,	'(\w+) (.+)', 			'show message from user'
-	PARENT_ADVERTISE =  	20,	'(\w+) (\w+) (.+)', 	'advertize  to parent'
-	ADVERTISE =  			21,	'', 					'advertize self'
-	DESTINATION_NOT_FOUND =	31,	'',      				'destination not found'
-	CONNECTION_REQUEST =    41,	'(d+)',					'connection request to another peer, data: port'
+	MESSAGE =   			0
+	ROUTING_REQUEST =     	10
+	ROUTING_RESPONSE =     	11
+	PARENT_ADVERTISE =  	20
+	ADVERTISE =  			21
+	DESTINATION_NOT_FOUND =	31
+	CONNECTION_REQUEST =    41
 
 
 class Packet:

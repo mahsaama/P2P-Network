@@ -28,7 +28,7 @@ class Client(BasePeer):
 		self.known_peers = {} 		# dict of {peer_id: peer_port}. peer_port is None for all except children
 		self.children_subtree = {} 	# dict of {child_id: list of peer_id}
 
-		self.current_chatroom = None # So that when in a chatroom, we ignore other chatroom join requests, etc
+		self.current_chatroom: Chatroom.Chatroom = None # So that when in a chatroom, we ignore other chatroom join requests, etc
 		
 		self.sending_socket = None
 
@@ -175,7 +175,28 @@ class Client(BasePeer):
 						response_msg = "Hezaro Sisad Ta Salam"
 						response_packet = Packet(PacketType.MESSAGE, self.id, packet.source, response_msg)
 						self.send_packet_to_peer(self.known_peers[packet.source], response_packet)
-					elif re.fullmatch('CHAT', packet.data.splitlines()[])
+					elif re.fullmatch('CHAT', packet.data.splitlines()[0], flags=re.IGNORECASE):
+						if not ((not (self.current_chatroom is None)) and
+								packet.source in self.current_chatroom.members.keys()):
+							pass
+						elif self.current_chatroom is None:
+							if re.fullmatch('REQUESTS FOR STARTING CHAT WITH', packet.data.splitlines()[1], flags=re.IGNORECASE):
+								chatname_invitor = packet.data.splitlines()[1].split(": ")[0].split()[-1]
+								id_invitor = packet.data.splitlines()[1].split(": ")[1].split()[0]
+								print(f"{chatname_invitor} with id {id_invitor} has asked you to join a chat. Would you like to join?[Y/N]")
+								answer = input()
+								if answer == "Y":
+									print("Choose a name for yourself")
+									chatname = input()
+									msg = str(self.id) + " :" + chatname
+									self.current_chatroom = Chatroom.Chatroom(chatname_invitor, id_invitor)
+									for member_id in packet.data.splitlines()[1].split(": ")[1].split():
+										if member_id != id_invitor:
+											self.current_chatroom.possible_members.append(int(member_id))
+									for id in self.current_chatroom.possible_members:
+										self.send_packet_to_peer()
+
+
 
 
 
@@ -223,8 +244,11 @@ class Client(BasePeer):
 				for member in possible_members_we_can_reach:
 					member_list_msg += ", "
 					member_list_msg += str(member)
+
+				request_msg = "CHAT\nREQUESTS FOR STARTING CHAT WITH" + chat_name + ": " + member_list_msg + "\n"
 				for member in possible_members_we_can_reach:
-					request_msg = "CHAT\nREQUESTS FOR STARTING CHAT WITH" + chat_name + ": " + member_list_msg
+					request_msg += self.known_peers[member]
+				for member in possible_members_we_can_reach:
 					packet = Packet(PacketType.MESSAGE, self.id, member, request_msg)
 					self.send_packet_to_peer(self.known_peers[member], packet)
 

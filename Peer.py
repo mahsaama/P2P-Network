@@ -1,4 +1,5 @@
 from Packet import Packet, PacketType
+import Chatroom
 import re
 import socket
 import threading
@@ -26,6 +27,8 @@ class Client(BasePeer):
 		
 		self.known_peers = {} 		# dict of {peer_id: peer_port}. peer_port is None for all except children
 		self.children_subtree = {} 	# dict of {child_id: list of peer_id}
+
+		self.current_chatroom = None # So that when in a chatroom, we ignore other chatroom join requests, etc
 		
 		self.sending_socket = None
 
@@ -167,7 +170,14 @@ class Client(BasePeer):
 					print(packet.data)
 
 				elif packet.type == PacketType.MESSAGE:
-					pass # TODO
+					# handling Salam message
+					if packet.data == "Salam Salam Sad Ta Salam":
+						response_msg = "Hezaro Sisad Ta Salam"
+						response_packet = Packet(PacketType.MESSAGE, self.id, packet.source, response_msg)
+						self.send_packet_to_peer(self.known_peers[packet.source], response_packet)
+					elif re.fullmatch('CHAT', packet.data.splitlines()[])
+
+
 
 			except OSError as e:
 				dprint(f"Error", e)
@@ -196,6 +206,27 @@ class Client(BasePeer):
 				dest_id = msg.split()[1]
 				packet = Packet(PacketType.ADVERTISE, self.id, dest_id, self.id)
 				self.route_packet(packet)
+
+			elif re.match('START CHAT', msg, flags=re.IGNORECASE):
+				splited = msg.split(": ")
+				possible_members = splited[1].split(", ")
+
+				for i in range(len(possible_members)):
+					possible_members[i] = int(possible_members[i])
+				possible_members_we_can_reach = []
+				for member in possible_members:
+					if not(self.known_peers[member] is None):
+						possible_members_we_can_reach.append(member)
+				chat_name = splited[0].split()[2]
+				self.current_chatroom = Chatroom.Chatroom(chat_name, self.id)
+				member_list_msg = str(self.id)
+				for member in possible_members_we_can_reach:
+					member_list_msg += ", "
+					member_list_msg += str(member)
+				for member in possible_members_we_can_reach:
+					request_msg = "CHAT\nREQUESTS FOR STARTING CHAT WITH" + chat_name + ": " + member_list_msg
+					packet = Packet(PacketType.MESSAGE, self.id, member, request_msg)
+					self.send_packet_to_peer(self.known_peers[member], packet)
 
 			else:
 				print("INVALID COMMAND")

@@ -115,8 +115,9 @@ class Client(BasePeer):
 			self.send_packet_to_peer(self.parent_port, packet)
 			return True
 
-		not_found_packet = Packet(PacketType.DESTINATION_NOT_FOUND, self.id, packet.source, f"DESTINATION {packet.destination} NOT FOUND")
-		self.send_packet_to_peer(self.get_listen_port_from_sending_port(sender_port), not_found_packet)
+		if self.id != packet.source:
+			not_found_packet = Packet(PacketType.DESTINATION_NOT_FOUND, self.id, packet.source, f"DESTINATION {packet.destination} NOT FOUND")
+			self.send_packet_to_peer(self.get_listen_port_from_sending_port(sender_port), not_found_packet)
 
 		dprint(f'could not route packet with source {packet.source} and destination {packet.destination}', level=3)
 		return False

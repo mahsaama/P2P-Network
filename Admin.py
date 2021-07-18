@@ -8,6 +8,8 @@ from commons import dprint, BasePeer
 HOST = '127.0.0.1'
 PORT = 23000
 
+chatrooms_id = 0
+
 class Admin(BasePeer):
 	def __init__(self) -> None:
 		self.network = nt.Network()

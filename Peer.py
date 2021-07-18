@@ -150,6 +150,7 @@ class Client(BasePeer):
 
 				# If packet dest is not only us we need to route it
 				if packet.destination != self.id:
+					print(f"{packet.type} Packet from {packet.source} to {packet.destination}")
 					self.route_packet(packet, peer_port)
 
 				# If we aren't included in packet dist we pass

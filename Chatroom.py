@@ -1,6 +1,3 @@
-from commons import dprint
-
-
 class Chatroom:
     def __init__(self, chat_name: str):
         self.my_name = chat_name

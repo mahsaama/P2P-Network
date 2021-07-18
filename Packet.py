@@ -46,8 +46,8 @@ class PacketType(Enum):
 class Packet:
 	def __init__(self, typ: PacketType, src_id: str, dst_id: str, data: str) -> None:
 		self.type: PacketType = typ
-		self.destination: int = dst_id
-		self.source: int = src_id
+		self.destination: str = dst_id
+		self.source: str = src_id
 		self.data: str = data
 
 	def __str__(self) -> str:

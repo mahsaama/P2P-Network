@@ -8,3 +8,7 @@ CONNECT AS e ON PORT 9020
 
 
 SHOW KNOWN CLIENTS
+
+start chat ccc: a, b
+Salam Salam Sad Ta Salam a
+Salam Salam Sad Ta Salam -1

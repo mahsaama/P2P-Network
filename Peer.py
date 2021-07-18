@@ -17,23 +17,23 @@ PEER_HOST = '127.0.0.1'
 
 
 class Client(BasePeer):
-	def __init__(self, admin_host, admin_port, peer_host):
-		BasePeer.__init__(self)
-		self.admin_host = admin_host
-		self.admin_port = admin_port
+    def __init__(self, admin_host, admin_port, peer_host):
+        BasePeer.__init__(self)
+        self.admin_host = admin_host
+        self.admin_port = admin_port
 
-		self.host = peer_host
-		self.listening_port = 0
+        self.host = peer_host
+        self.listening_port = 0
 
-		self.id = None
+        self.id = None
 
-		self.parent_id = None
-		self.parent_port = None
+        self.parent_id = None
+        self.parent_port = None
 
-		self.known_peers = {}  # dict of {peer_id: peer_port}. peer_port is None for all except children
-		self.children_subtree = {}  # dict of {child_id: list of peer_id}
+        self.known_peers = {}  # dict of {peer_id: peer_port}. peer_port is None for all except children
+        self.children_subtree = {}  # dict of {child_id: list of peer_id}
 
-		self.sending_socket = None
+        self.sending_socket = None
 
         self.wait_for_YN = 0
         self.wait_for_chat_name = 0
@@ -132,16 +132,16 @@ class Client(BasePeer):
         dprint(f'could not route packet with source {packet.source} and destination {packet.destination}', level=3)
         return False
 
-	def peer_receiving_handler(self, server):
-		''' Receive messages from peers '''
-		while True:
-			try:
-				pkt = self.receive_packet_udp(server)
-				if pkt:
-					packet, peer_address = pkt
-					peer_port = peer_address[1]
-				else:
-					continue
+    def peer_receiving_handler(self, server):
+        ''' Receive messages from peers '''
+        while True:
+            try:
+                pkt = self.receive_packet_udp(server)
+                if pkt:
+                    packet, peer_address = pkt
+                    peer_port = peer_address[1]
+                else:
+                    continue
 
                 # If packet is routing response we need to change it before continue
                 if packet.type == PacketType.ROUTING_RESPONSE:
@@ -151,32 +151,15 @@ class Client(BasePeer):
                         new_data = f'{self.id} -> {packet.data}'
                     packet = Packet(PacketType.ROUTING_RESPONSE, self.id, packet.destination, new_data)
 
-                # If packet dest is not only us we need to route it
-                if packet.destination != self.id:
-                    self.route_packet(packet, peer_port)
-
-                # If we aren't included in packet dist we pass
-                if packet.destination != '-1' and packet.destination != self.id:
-                    continue
+                    # If packet dest is not only us we need to route it
+                    if packet.destination != self.id:
+                        self.route_packet(packet, peer_port)
+                        # If we aren't included in packet dist we pass
+                        if packet.destination != '-1':
+                            print(f"{packet.type.code} Packet from {packet.source} to {packet.destination}")
+                            continue
 
                 self.add_to_known_peers(packet.source)
-				# If packet is routing response we need to change it before continue
-				if packet.type == PacketType.ROUTING_RESPONSE:
-					if packet.source == self.parent_id:
-						new_data = f'{self.id} <- {packet.data}'
-					else:
-						new_data = f'{self.id} -> {packet.data}'
-					packet = Packet(PacketType.ROUTING_RESPONSE, self.id, packet.destination, new_data)
-
-				# If packet dest is not only us we need to route it
-				if packet.destination != self.id:
-					self.route_packet(packet, peer_port)
-					# If we aren't included in packet dist we pass
-					if packet.destination != '-1':
-						print(f"{packet.type.code} Packet from {packet.source} to {packet.destination}")
-						continue
-
-				self.add_to_known_peers(packet.source)
 
                 # If we reach here it means packet is for us
                 if packet.type == PacketType.CONNECTION_REQUEST:
@@ -221,7 +204,7 @@ class Client(BasePeer):
                             print(f"{hello_msg} ({packet.source})")
 
                     # Chat messages
-                    elif packet.data.startswith('CHAT:'):
+                    elif packet.data.startswith('CHAT:') and not self.chat_disabled:
 
                         chat_msg = packet.data.removeprefix('CHAT:').strip()
 
@@ -326,12 +309,29 @@ class Client(BasePeer):
                     packet = Packet(PacketType.ADVERTISE, self.id, dest_id, self.id)
                     self.route_packet(packet)
 
+                elif re.fullmatch('FIlTER (INPUT|OUTPUT|FORWARD) (\w+|[*]) (\w+|[*]) (\w+) (ACCEPT|DROP)', msg,
+                                  flags=re.IGNORECASE):
+                    direction, id_src, id_dst, typ, action = msg.split()[1:]
+                    if not ((id_src == '*' and direction == 'OUTPUT') or (id_dst == '*' and direction == 'INPUT')):
+                        self.firewall.insert(0, (direction, id_src, id_dst, typ, action))
+
+                elif re.fullmatch('FW CHAT (ACCEPT|DROP)', msg, flags=re.IGNORECASE):
+                    action = msg.split()[-1]
+                    if action == "ACCEPT":
+                        self.chat_disabled = False
+                    elif action == "DROP":
+                        self.chat_disabled = True
+
                 elif re.fullmatch('Salam Salam Sad Ta Salam (-?\w+)', msg, flags=re.IGNORECASE):
                     dest_id = msg.split()[-1]
                     packet = Packet(PacketType.MESSAGE, self.id, dest_id, 'SALAM:Salam Salam Sad Ta Salam')
                     self.route_packet(packet)
 
                 elif re.fullmatch('START CHAT (\w+):( ((\w+), )*(\w+))?', msg, flags=re.IGNORECASE):
+                    if self.chat_disabled:
+                        print('Chat is disabled. Make sure the firewall allows you to chat.')
+                        continue
+
                     random.seed(datetime.now())
                     chat_id = random.randint(1, 1000000)
                     splited = msg.split(": ")
@@ -357,53 +357,8 @@ class Client(BasePeer):
                             packet = Packet(PacketType.MESSAGE, self.id, member, request_msg)
                             self.route_packet(packet)
 
-				elif re.fullmatch('FIlTER (INPUT|OUTPUT|FORWARD) (\w+|[*]) (\w+|[*]) (\w+) (ACCEPT|DROP)', msg, flags=re.IGNORECASE):
-					direction, id_src, id_dst, typ, action = msg.split()[1:]
-					if not ((id_src == '*' and direction == 'OUTPUT') or (id_dst == '*' and direction == 'INPUT')):
-						self.firewall.insert(0, (direction, id_src, id_dst, typ, action))
-
-				elif re.fullmatch('FW CHAT (ACCEPT|DROP)', msg, flags=re.IGNORECASE):
-					action = msg.split()[-1]
-					if action == "ACCEPT":
-						self.chat_disabled = False
-					elif action == "DROP":
-						self.chat_disabled = True
-
-				elif re.fullmatch('Salam Salam Sad Ta Salam (-?\w+)', msg, flags=re.IGNORECASE):
-					dest_id = msg.split()[-1]
-					packet = Packet(PacketType.MESSAGE, self.id, dest_id, 'SALAM:Salam Salam Sad Ta Salam')
-					self.route_packet(packet)
-
-				elif re.fullmatch('START CHAT (\w+):( ((\w+), )*(\w+))?', msg, flags=re.IGNORECASE):
-					if self.chat_disabled:
-						print('Chat is disabled. Make sure the firewall allows you to chat.')
-						continue
-
-					splited = msg.split(": ")
-					chat_name = splited[0].split()[2]
-					possible_members = splited[1].split(", ")
-
-					self.current_chatroom = Chatroom.Chatroom(chat_name)
-
-					for member in possible_members:
-						if member in self.known_peers:
-							self.current_chatroom.add_member(member)
-
-					member_list_msg = self.id
-					for member in self.current_chatroom.members:
-						if member != self.id:
-							member_list_msg += ", "
-							member_list_msg += member
-
-					request_msg = f"CHAT:REQUESTS FOR STARTING CHAT WITH {chat_name}: {member_list_msg}"
-
-					for member in self.current_chatroom.members:
-						if member != self.id:
-							packet = Packet(PacketType.MESSAGE, self.id, member, request_msg)
-							self.route_packet(packet)
-
-				else:
-					print("INVALID COMMAND")
+                else:
+                    print("INVALID COMMAND")
 
             # In Chatroom
             else:

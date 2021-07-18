@@ -43,7 +43,7 @@ class Network:
             return ''
 
         return self._str_network(node.left, level + 1) + \
-            f"{' ' * 5 * level} -> {node.data}\n" + \
+            f"{' ' * 5 * level} -> {node.id}\n" + \
             self._str_network(node.right, level + 1)
  
     def __str__(self):

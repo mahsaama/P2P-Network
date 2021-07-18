@@ -8,6 +8,7 @@ from commons import dprint, BasePeer
 HOST = '127.0.0.1'
 PORT = 23000
 
+
 class Admin(BasePeer):
 	def __init__(self) -> None:
 		self.network = nt.Network()
@@ -25,7 +26,7 @@ class Admin(BasePeer):
 				if re.fullmatch('(\w+) REQUESTS FOR CONNECTING TO NETWORK ON PORT (\d+)', msg, flags=re.IGNORECASE):
 					msg_arr = msg.split()
 					id_, port = msg_arr[0], msg_arr[-1]
-					
+
 					if self.get_peer_from_id(id_):
 						admin_msg = f"ID {id_} already exist"
 					else:
@@ -42,15 +43,13 @@ class Admin(BasePeer):
 			peer.close()
 			dprint(f"Error. Peer {peer.getpeername()} shutdown.", e)
 
-
 	def get_peer_from_id(self, id_):
 		if id_ in self.peers:
 			return self.peers[id_]
 		return None
-		
 
 	def listen(self, host, port):
-		with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server: # (IPv4 , TCP)
+		with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:  # (IPv4 , TCP)
 			server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 			server.bind((host, port))
 			server.listen()
@@ -65,4 +64,4 @@ class Admin(BasePeer):
 
 if __name__ == "__main__":
 	admin = Admin()
-	admin.listen(HOST, PORT)			
+	admin.listen(HOST, PORT)

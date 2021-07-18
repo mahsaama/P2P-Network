@@ -1,5 +1,10 @@
+
+from commons import dprint
+
+
 class Chatroom:
-    def __init__(self, chat_name: str):
+    def __init__(self, chat_name: str, id: int):
+        self.chat_id = id
         self.my_name = chat_name
         self.members = {}
 

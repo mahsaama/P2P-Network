@@ -35,15 +35,16 @@ class BasePeer:
 		else:
 			socket.sendto(msg, addr)
 
-	def receive(self, socket: socket.SocketType):
-		msg = socket.recv(MSG_SIZE).decode("ascii")
-		if msg:
-			dprint(f"Got message from peer {socket.getpeername()}: {msg}")
-		return msg
-
 	def send_packet(self, socket: socket.SocketType, packet:Packet, addr=None):
 		self.send(socket, packet.__str__(), addr)
 
+	def receive(self, socket: socket.SocketType):
+		msg = socket.recv(MSG_SIZE).decode("ascii")
+		msg = msg.strip()
+		if msg:
+			dprint(f"Got message from peer {socket.getpeername()}: {msg}")
+		return msg
+	
 	def receive_packet(self, socket) -> Packet:
 		msg = self.receive(socket)
 		if not msg:
@@ -57,6 +58,8 @@ class BasePeer:
 		if not msg:
 			return None
 		msg = msg.decode("ascii")
+		msg = msg.strip()
+		dprint(f"Got message from peer {address}: {msg}")
 		splited = msg.split('|')
 		packet = Packet(PacketType.get_packet_type_from_code(splited[0]), splited[1], splited[2], splited[3])
 		return packet, address

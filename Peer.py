@@ -150,12 +150,11 @@ class Client(BasePeer):
 
 				# If packet dest is not only us we need to route it
 				if packet.destination != self.id:
-					print(f"{packet.type} Packet from {packet.source} to {packet.destination}")
 					self.route_packet(packet, peer_port)
-
-				# If we aren't included in packet dist we pass
-				if packet.destination != '-1' and packet.destination != self.id:
-					continue
+					# If we aren't included in packet dist we pass
+					if packet.destination != '-1':
+						print(f"{packet.type.code} Packet from {packet.source} to {packet.destination}")
+						continue
 
 				self.add_to_known_peers(packet.source)
 
@@ -206,7 +205,7 @@ class Client(BasePeer):
 						chat_msg = packet.data.removeprefix('CHAT:').strip()
 
 						dprint(
-							f"recieved chat message {chat_msg} - currectly have chatroom: {self.current_chatroom != None}",
+							f"received chat message {chat_msg} - currently have chatroom: {self.current_chatroom != None}",
 							level=3)
 
 						# If we are not in chatroom

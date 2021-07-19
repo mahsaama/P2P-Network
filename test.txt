@@ -10,13 +10,14 @@ CONNECT AS e ON PORT 9030
 SHOW KNOWN CLIENTS
 
 start chat chatty_saba: a, b, c, d
-Salam Salam Sad Ta Salam a
+Salam Salam Sad Ta Salam b
+Salam Salam Sad Ta Salam c
 Salam Salam Sad Ta Salam -1
 
 advertise -1
 
-FILTER FORWARD c b 21 DROP
-FILTER FORWARD c b 21 ACCEPT
+FILTER FORWARD c b 00 DROP
+FILTER FORWARD c b 00 ACCEPT
 
 
 FW CHAT DROP

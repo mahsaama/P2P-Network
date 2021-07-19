@@ -3,7 +3,7 @@ import re
 import socket
 import threading
 threading
-from commons import dprint, BasePeer
+from commons import dprint, BaseSenderReceiver
 
 
 ADMIN_HOST = '127.0.0.1'
@@ -11,7 +11,7 @@ ADMIN_PORT = 23000
 
 PEER_HOST = '127.0.0.1'
 
-class Client(BasePeer):
+class Peer(BaseSenderReceiver):
 	def __init__(self, admin_host, admin_port, peer_host):
 		self.admin_host = admin_host
 		self.admin_port = admin_port
@@ -236,7 +236,7 @@ class Client(BasePeer):
 				# connect to admin to get parent in network
 				with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as peer:
 					peer.connect((self.admin_host, self.admin_port))
-					dprint(f"Client is connected to admin {self.admin_host}:{self.admin_port}")
+					dprint(f"Peer is connected to admin {self.admin_host}:{self.admin_port}")
 
 					conn_msg = f"{self.id} REQUESTS FOR CONNECTING TO NETWORK ON PORT {self.listening_port}"
 					self.send(peer, conn_msg)
@@ -270,5 +270,5 @@ class Client(BasePeer):
 		
 
 if __name__ == "__main__":
-	client = Client(ADMIN_HOST, ADMIN_PORT, PEER_HOST)
+	client = Peer(ADMIN_HOST, ADMIN_PORT, PEER_HOST)
 	client.start()

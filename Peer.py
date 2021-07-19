@@ -4,10 +4,8 @@ import re
 import socket
 import threading
 import random
-from datetime import datetime
 
-threading
-from commons import dprint, BasePeer
+from commons import dprint, BaseSenderReceiver
 
 
 ADMIN_HOST = '127.0.0.1'
@@ -15,11 +13,9 @@ ADMIN_PORT = 23000
 
 PEER_HOST = '127.0.0.1'
 
-
-
-class Client(BasePeer):
+class Peer(BaseSenderReceiver):
 	def __init__(self, admin_host, admin_port, peer_host):
-		BasePeer.__init__(self)
+		BaseSenderReceiver.__init__(self)
 		self.admin_host = admin_host
 		self.admin_port = admin_port
 
@@ -43,6 +39,44 @@ class Client(BasePeer):
 		self.wait_for_chat_name = 0
 		self.pending_chat_requests = []  # list of chat requests
 
+		self.firewall = []
+
+
+	def firewall_check(self, packet: Packet, flag):  # flag_send = True, flag_receive = False
+		typ, id_src, id_dst = packet.type, packet.source, packet.destination
+		for rule in self.firewall:
+			dprint(f"checking rule {rule} ...", level=3)
+
+			rule_direction = rule[0]
+			rule_source = rule[1]
+			rule_destination = rule[2]
+			rule_packet_type = rule[3]
+			rule_action = rule[4]
+
+			if rule_packet_type == typ and rule_action == "ACCEPT":
+				if rule_direction == 'INPUT' and (rule_source == id_src or rule_source == '*') and (id_dst == self.id or id_dst == '-1'):
+					dprint(f"Your input packet is accepted in match with {rule} rule.", level=2)
+					return True
+				elif rule_direction == 'OUTPUT' and id_src == self.id and (rule_destination == id_dst or id_dst == '-1' or rule_destination == '*'):
+					dprint(f"Your output packet is accepted in match with {rule} rule.", level=2)
+					return True
+				elif rule_direction == 'FORWARD' and (rule_source == id_src or rule_source == '*') and (rule_destination == id_dst or id_dst == '-1' or rule_destination == '*'):
+					if flag:
+						dprint(f"Your forward packet is accepted in match with {rule} rule.", level=2)
+						return True
+			elif rule_packet_type == typ and rule_action == "DROP":
+				if rule_direction == 'INPUT' and (rule_source == id_src or rule_source == '*') and (id_dst == self.id or id_dst == '-1'):
+					dprint(f"Your input packet is dropped in match with {rule} rule.", level=2)
+					return False
+				elif rule_direction == 'OUTPUT' and id_src == self.id and (rule_destination == id_dst or id_dst == '-1' or rule_destination == '*'):
+					dprint(f"Your output packet is dropped in match with {rule} rule.", level=2)
+					return False
+				elif rule_direction == 'FORWARD' and (rule_source == id_src or rule_source == '*') and (rule_destination == id_dst or id_dst == '-1' or rule_destination == '*'):
+					if flag:
+						dprint(f"Your forward packet is dropped in match with {rule} rule.", level=2)
+						return False
+		return True
+
 
 	def add_to_known_peers(self, id_, port=None):
 		if id_ not in self.known_peers or self.known_peers[id_] == None:
@@ -51,11 +85,23 @@ class Client(BasePeer):
 
 	def send_packet_to_peer(self, peer_port, packet):
 		try:
-			self.send_packet(self.sending_socket, packet, (self.host, peer_port))
+			if self.firewall_check(packet, flag=True):
+				self.send_packet(self.sending_socket, packet, (self.host, peer_port))
 		except OSError as e:
 			dprint(f"could not send packet: {packet} to port {peer_port}, err: {e}")
 			return False
 		return True
+	
+	def receive_packet_from_server(self, server):
+		while True:
+			pkt = self.receive_packet_udp(server)
+			if pkt:
+				packet, peer_address = pkt
+				peer_port = peer_address[1]
+				if self.firewall_check(packet, flag=False):
+					return packet, peer_port
+			else:
+				continue
 
 	def advertise_to_parent(self, peer_id):
 		if not self.parent_port:
@@ -139,12 +185,7 @@ class Client(BasePeer):
 		''' Receive messages from peers '''
 		while True:
 			try:
-				pkt = self.receive_packet_udp(server)
-				if pkt:
-					packet, peer_address = pkt
-					peer_port = peer_address[1]
-				else:
-					continue
+				packet, peer_port = self.receive_packet_from_server(server)
 
 				# If packet is routing response we need to change it before continue
 				if packet.type == PacketType.ROUTING_RESPONSE:
@@ -328,7 +369,7 @@ class Client(BasePeer):
 				elif re.fullmatch('FIlTER (INPUT|OUTPUT|FORWARD) (\w+|[*]) (\w+|[*]) (\w+) (ACCEPT|DROP)', msg,
 								  flags=re.IGNORECASE):
 					direction, id_src, id_dst, typ, action = msg.split()[1:]
-					self.firewall.insert(0, (direction, id_src, id_dst, typ, action))
+					self.firewall.insert(0, (direction, id_src, id_dst, PacketType.get_packet_type_from_code(typ), action))
 
 				elif re.fullmatch('FW CHAT (ACCEPT|DROP)', msg, flags=re.IGNORECASE):
 					action = msg.split()[-1]
@@ -433,7 +474,7 @@ class Client(BasePeer):
 				# connect to admin to get parent in network
 				with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as peer:  # TCP
 					peer.connect((self.admin_host, self.admin_port))
-					dprint(f"Client is connected to admin {self.admin_host}:{self.admin_port}")
+					dprint(f"Peer is connected to admin {self.admin_host}:{self.admin_port}")
 
 					conn_msg = f"{self.id} REQUESTS FOR CONNECTING TO NETWORK ON PORT {self.listening_port}"
 					self.send(peer, conn_msg)
@@ -475,5 +516,5 @@ class Client(BasePeer):
 
 
 if __name__ == "__main__":
-	client = Client(ADMIN_HOST, ADMIN_PORT, PEER_HOST)
+	client = Peer(ADMIN_HOST, ADMIN_PORT, PEER_HOST)
 	client.start()

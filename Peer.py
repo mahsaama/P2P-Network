@@ -242,6 +242,17 @@ class Client(BasePeer):
                                     self.current_chatroom.add_member(id_, chat_name)
                                     print(f'{chat_name}({id_}) was joind to the chat.')
 
+                                    response_msg = f"CHAT:METOO:{self.id}: {self.current_chatroom.my_name}\n{self.current_chatroom.chat_id}"
+                                    packet = Packet(PacketType.MESSAGE, self.id, id_, response_msg)
+                                    self.route_packet(packet)
+
+                                elif re.match('METOO', chat_msg, flags=re.IGNORECASE):
+                                    chat_msg = chat_msg.removeprefix("METOO: ")
+                                    splited = chat_msg.splitlines()[0].split(' :')
+                                    id_ = splited[0]
+                                    chat_name = splited[1]
+                                    self.current_chatroom.add_member(id_, chat_name)
+
                                 elif re.match('NEW:', chat_msg, flags=re.IGNORECASE):
                                     new_chat = chat_msg.removeprefix('NEW:')
                                     print(new_chat.splitlines()[0])
@@ -277,12 +288,12 @@ class Client(BasePeer):
                     response_message = f"CHAT:JOIN:{self.id} :{chat_name}\n{str(chat_id)}"
 
                     self.current_chatroom = Chatroom.Chatroom(chat_name, chat_id)
-                    self.current_chatroom.add_member(id_invitor, chatname_invitor)
+                    self.current_chatroom.add_possible_member(id_invitor, chatname_invitor)
 
                     for member_id in members:
                         if member_id != self.id:
                             self.add_to_known_peers(member_id)
-                            self.current_chatroom.add_member(member_id)
+                            self.current_chatroom.add_possible_member(member_id)
 
                             packet = Packet(PacketType.MESSAGE, self.id, member_id, response_message)
                             self.route_packet(packet)
@@ -342,7 +353,7 @@ class Client(BasePeer):
 
                     for member in possible_members:
                         if member in self.known_peers:
-                            self.current_chatroom.add_member(member)
+                            self.current_chatroom.add_possible_member(member)
 
                     member_list_msg = self.id
                     for member in self.current_chatroom.members:
@@ -364,7 +375,7 @@ class Client(BasePeer):
             else:
                 if re.fullmatch('EXIT CHAT', msg, flags=re.IGNORECASE):
                     packet_data = f"CHAT:EXIT CHAT {self.id} {self.current_chatroom.my_name}\n{str(self.current_chatroom.chat_id)}"
-                    for member in self.current_chatroom.members:
+                    for member in self.current_chatroom.definite_members:
                         packet = Packet(PacketType.MESSAGE, self.id, member, packet_data)
                         self.route_packet(packet)
 
@@ -372,7 +383,7 @@ class Client(BasePeer):
 
                 else:
                     packet_data = f"CHAT:NEW:{self.current_chatroom.my_name}: {msg}\n{str(self.current_chatroom.chat_id)}"
-                    for member in self.current_chatroom.members:
+                    for member in self.current_chatroom.definite_members:
                         packet = Packet(PacketType.MESSAGE, self.id, member, packet_data)
                         self.route_packet(packet)
 

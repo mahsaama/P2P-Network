@@ -444,16 +444,6 @@ class Peer(BaseSenderReceiver):
 
 		return True
 
-	# def listen_handler(self, server):
-	# 	server.listen()
-	# 	dprint(f"Peer is listening on {self.host}:{self.listening_port}")
-
-	# 	while True:
-	# 		peer, address = server.accept()
-	# 		dprint(f"Peer {address} is connected")
-	# 		thread = threading.Thread(target=self.peer_receiving_handler, args=[peer])
-	# 		thread.start()
-
 	def start(self):
 		''' Get inputs from terminal and send messages '''
 		while True:
@@ -487,10 +477,6 @@ class Peer(BaseSenderReceiver):
 					else:
 						print(msg)
 						continue
-
-				# start listening on desired port
-				# thread = threading.Thread(target=self.listen_handler, args=[server])
-				# thread.start()
 
 				# start listening for incoming messages from peers
 				thread = threading.Thread(target=self.peer_receiving_handler, args=[server])

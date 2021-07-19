@@ -3,12 +3,22 @@ CONNECT AS par ON PORT 9005
 CONNECT AS a ON PORT 9010
 CONNECT AS b ON PORT 9015
 CONNECT AS c ON PORT 9020
-CONNECT AS d ON PORT 9020
-CONNECT AS e ON PORT 9020
+CONNECT AS d ON PORT 9025
+CONNECT AS e ON PORT 9030
 
 
 SHOW KNOWN CLIENTS
 
-start chat chatty_saba: a, b
-Salam Salam Sad Ta Salam a
+start chat chatty_saba: a, b, c, d
+Salam Salam Sad Ta Salam b
+Salam Salam Sad Ta Salam c
 Salam Salam Sad Ta Salam -1
+
+advertise -1
+
+FILTER FORWARD c b 00 DROP
+FILTER FORWARD c b 00 ACCEPT
+
+
+FW CHAT DROP
+FW CHAT ACCEPT

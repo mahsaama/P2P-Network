@@ -10,14 +10,7 @@ class PacketType(Enum):
 	def __new__(cls, value):
 		obj = object.__new__(cls)
 		obj._value_ = value
-		# obj.pattern = re.compile(regex)
-		# obj.description = description
 		return obj
-	
-	# @property
-	# def args_no(self):
-	# 	''' return number of arguments that will be followed after message code. '''
-	# 	return self.pattern.groups
 
 	@property
 	def code(self):

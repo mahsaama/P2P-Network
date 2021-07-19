@@ -2,14 +2,14 @@ import Network as nt
 import socket
 import threading
 import re
-from commons import dprint, BasePeer
+from commons import dprint, BaseSenderReceiver
 
 # admin initialization
 HOST = '127.0.0.1'
 PORT = 23000
 
 
-class Admin(BasePeer):
+class Admin(BaseSenderReceiver):
 	def __init__(self) -> None:
 		self.network = nt.Network()
 		self.peers = {}

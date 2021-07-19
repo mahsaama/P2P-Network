@@ -373,7 +373,6 @@ class Client(BasePeer):
                 else:
                     packet_data = f"CHAT:NEW:{self.current_chatroom.my_name}: {msg}\n{str(self.current_chatroom.chat_id)}"
                     for member in self.current_chatroom.members:
-                        print(member)
                         packet = Packet(PacketType.MESSAGE, self.id, member, packet_data)
                         self.route_packet(packet)
 

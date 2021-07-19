@@ -3,7 +3,7 @@ from Packet import Packet, PacketType
 import socket
 import Chatroom
 
-LOG_LEVEL = 3	# higher number -> more log
+LOG_LEVEL = 1	# higher number -> more log
 MSG_SIZE = 1024
 
 class bcolors:
@@ -28,8 +28,6 @@ def dprint(*args, level=1):
 
 class BasePeer:
 	def __init__(self):
-		self.current_chatroom: Chatroom.Chatroom = None  # So that when in a chatroom, we ignore other chatroom join requests, etc
-		self.chat_disabled = False
 		self.firewall = []
 
 	def send(self, socket: socket.SocketType, msg, addr=None):
@@ -77,77 +75,32 @@ class BasePeer:
 	def firewall_check(self, msg_arr, flag):  # flag_send = True, flag_receive = False
 		typ, id_src, id_dst = msg_arr[:3]
 		for rule in self.firewall:
-			if rule[3] == typ and rule[4] == "ACCEPT":
-				if rule[0] == 'INPUT' and (rule[1] == id_src or rule[1] == '*') and (rule[2] == id_dst or id_dst == '-1'):
+			rule_direction = rule[0]
+			rule_source = rule[1]
+			rule_destination = rule[2]
+			rule_packet_type = rule[3]
+			rule_action = rule[4]
+
+			if rule_packet_type == typ and rule_action == "ACCEPT":
+				if rule_direction == 'INPUT' and (rule_source == id_src or rule_source == '*') and (rule_destination == id_dst or id_dst == '-1'):
 					dprint(f"Your input packet is accepted in match with {rule} rule.", level=2)
 					return True
-				elif rule[0] == 'OUTPUT' and rule[1] == id_src and (rule[2] == id_dst or id_dst == '-1' or rule[2] == '*'):
+				elif rule_direction == 'OUTPUT' and rule_source == id_src and (rule_destination == id_dst or id_dst == '-1' or rule_destination == '*'):
 					dprint(f"Your output packet is accepted in match with {rule} rule.", level=2)
 					return True
-				elif rule[0] == 'FORWARD' and (rule[1] == id_src or rule[1] == '*') and (rule[2] == id_dst or id_dst == '-1' or rule[2] == '*'):
+				elif rule_direction == 'FORWARD' and (rule_source == id_src or rule_source == '*') and (rule_destination == id_dst or id_dst == '-1' or rule_destination == '*'):
 					if flag:
 						dprint(f"Your forward packet is accepted in match with {rule} rule.", level=2)
 						return True
-			elif rule[3] == typ and rule[4] == "DROP":
-				if rule[0] == 'INPUT' and (rule[1] == id_src or rule[1] == '*') and (rule[2] == id_dst or id_dst == '-1'):
+			elif rule_packet_type == typ and rule_action == "DROP":
+				if rule_direction == 'INPUT' and (rule_source == id_src or rule_source == '*') and (rule_destination == id_dst or id_dst == '-1'):
 					dprint(f"Your input packet is dropped in match with {rule} rule.", level=2)
 					return False
-				elif rule[0] == 'OUTPUT' and rule[1] == id_src and (rule[2] == id_dst or id_dst == '-1' or rule[2] == '*'):
+				elif rule_direction == 'OUTPUT' and rule_source == id_src and (rule_destination == id_dst or id_dst == '-1' or rule_destination == '*'):
 					dprint(f"Your output packet is dropped in match with {rule} rule.", level=2)
 					return False
-				elif rule[0] == 'FORWARD' and (rule[1] == id_src or rule[1] == '*') and (rule[2] == id_dst or id_dst == '-1' or rule[2] == '*'):
+				elif rule_direction == 'FORWARD' and (rule_source == id_src or rule_source == '*') and (rule_destination == id_dst or id_dst == '-1' or rule_destination == '*'):
 					if flag:
 						dprint(f"Your forward packet is dropped in match with {rule} rule.", level=2)
 						return False
 		return True
-	# def send_fixed_length(self, message, desired_length = MSG_SIZE):
-	# 	''' Send message to peer for length `desired_length`. Default to `MSG_SIZE` 
-	# 	which is set at top of the file and must be same in peers. '''
-
-	# 	message = message.rjust(desired_length, ' ')
-	# 	if len(message) > desired_length:
-	# 		message = message[:desired_length]
-	# 	self.client.send(message.encode('ascii'))
-
-
-	# def recieve_fixed_length(self, desired_length = MSG_SIZE):
-	# 	''' Recieve message for length `desired_length`. Default to `MSG_SIZE`. '''
-
-	# 	message = b''
-	# 	while len(message) < desired_length:
-	# 		message += self.socket.recv(desired_length - len(message))	
-	# 	message = message.decode('ascii').strip()
-	# 	return message
-
-
-	# def send(self, message, *args):
-	# 	''' Send message code in 2 bytes and then send arguments in `MSG_SIZE`. '''
-
-	# 	dprint("Sending...", message, args)
-
-	# 	self.send_fixed_length(message.code, 2)
-	# 	for arg in args:
-	# 		dprint("send arg:", arg)
-	# 		self.send_fixed_length(arg)
-
-
-	# def recieve(self):	
-	# 	''' Recieve message code in 2 bytes and then if message enum is found
-	# 	recieve arguments. '''
-
-	# 	dprint("Receiving...")
-
-	# 	message_code = self.recieve_fixed_length(2)
-	# 	dprint("msg code:", message_code)
-
-	# 	message = self.recieve_enum_class.get_code(message_code)
-	# 	if message is None:
-	# 		return (None, [])
-		
-	# 	args = []
-	# 	for _ in range(message.args_no):
-	# 		arg = self.recieve_fixed_length()
-	# 		dprint("received arg:", arg)
-	# 		args.append(arg)
-
-	# 	return (message, args)

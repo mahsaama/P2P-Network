@@ -5,8 +5,6 @@ import socket
 import threading
 import random
 from datetime import datetime
-
-threading
 from commons import dprint, BasePeer
 
 
@@ -46,13 +44,28 @@ class Client(BasePeer):
             dprint(f'add peer with id {id_} and port {port} to known peers', level=2)
             self.known_peers[id_] = port
 
-    def send_packet_to_peer(self, peer_port, packet):
+    def send_packet_to_peer_udp(self, peer_port, packet):
         try:
             self.send_packet(self.sending_socket, packet, (self.host, peer_port))
         except OSError as e:
             dprint(f"could not send packet: {packet} to port {peer_port}, err: {e}")
             return False
         return True
+
+    def send_packet_to_peer(self, peer_port, packet):
+        sending_port = self.get_sending_port_from_listening_port(self.listening_port)
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as peer:
+                peer.bind((self.host, sending_port))
+                peer.connect((self.host, peer_port))
+                dprint(f"connected to {self.host}:{peer_port} from port {sending_port}", level=2)
+                self.send_packet(peer, packet)
+                peer.shutdown(socket.SHUT_RDWR)
+                peer.close()
+        except OSError as e:
+            dprint(f"could not send packet: {packet} to port {peer_port} from port {sending_port}, err: {e}")
+
+        dprint(f"connected to {self.host}:{peer_port} tamam nashot?", level=2)
 
     def advertise_to_parent(self, peer_id):
         if not self.parent_port:
@@ -132,16 +145,17 @@ class Client(BasePeer):
         dprint(f'could not route packet with source {packet.source} and destination {packet.destination}', level=3)
         return False
 
-    def peer_receiving_handler(self, server):
+    def peer_receiving_handler(self, peer: socket.SocketType):
         ''' Receive messages from peers '''
         while True:
+            peer_port = peer.getpeername()[1]
             try:
-                pkt = self.receive_packet_udp(server)
-                if pkt:
-                    packet, peer_address = pkt
-                    peer_port = peer_address[1]
-                else:
-                    continue
+                packet = self.receive_packet(peer)
+                if packet is None:
+                    dprint(f"Connection to peer {peer.getpeername()} closed.")
+                    peer.shutdown(socket.SHUT_RDWR)
+                    peer.close()
+                    break
 
                 # If packet is routing response we need to change it before continue
                 if packet.type == PacketType.ROUTING_RESPONSE:
@@ -253,10 +267,9 @@ class Client(BasePeer):
                                     self.current_chatroom.remove_member(exited_peer_id)
                                     print(f"{exited_peer_name}({exited_peer_id}) left the chat.")
 
-
-            except OSError as e:
-                dprint(f"Error", e)
-                pass
+            except socket.error as e:
+                peer.close()
+                dprint(f"Error. Peer {peer.getpeername()} shutdown.", e)
 
     def input_handler(self):
         ''' Get inputs from terminal and send messages '''
@@ -387,15 +400,15 @@ class Client(BasePeer):
 
         return True
 
-    # def listen_handler(self, server):
-    # 	server.listen()
-    # 	dprint(f"Peer is listening on {self.host}:{self.listening_port}")
+    def listen_handler(self, server):
+        server.listen()
+        dprint(f"Peer is listening on {self.host}:{self.listening_port}")
 
-    # 	while True:
-    # 		peer, address = server.accept()
-    # 		dprint(f"Peer {address} is connected")
-    # 		thread = threading.Thread(target=self.peer_receiving_handler, args=[peer])
-    # 		thread.start()
+        while True:
+            peer, address = server.accept()
+            dprint(f"Peer {address} is connected")
+            thread = threading.Thread(target=self.peer_receiving_handler, args=[peer])
+            thread.start()
 
     def start(self):
         ''' Get inputs from terminal and send messages '''
@@ -407,7 +420,7 @@ class Client(BasePeer):
                 self.add_to_known_peers(self.id, self.listening_port)
 
                 try:
-                    server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # UDP
+                    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                     server.bind((self.host, self.listening_port))  # passing zero will choose a random free port
                 except OSError:
@@ -432,12 +445,12 @@ class Client(BasePeer):
                         continue
 
                 # start listening on desired port
-                # thread = threading.Thread(target=self.listen_handler, args=[server])
-                # thread.start()
+                thread = threading.Thread(target=self.listen_handler, args=[server])
+                thread.start()
 
                 # start listening for incoming messages from peers
-                thread = threading.Thread(target=self.peer_receiving_handler, args=[server])
-                thread.start()
+                # thread = threading.Thread(target=self.peer_receiving_handler, args=[server])
+                # thread.start()
 
                 # init sending socket
                 if not self.init_sender():

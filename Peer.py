@@ -151,13 +151,13 @@ class Client(BasePeer):
                         new_data = f'{self.id} -> {packet.data}'
                     packet = Packet(PacketType.ROUTING_RESPONSE, self.id, packet.destination, new_data)
 
-                    # If packet dest is not only us we need to route it
-                    if packet.destination != self.id:
-                        self.route_packet(packet, peer_port)
-                        # If we aren't included in packet dist we pass
-                        if packet.destination != '-1':
-                            print(f"{packet.type.code} Packet from {packet.source} to {packet.destination}")
-                            continue
+                # If packet dest is not only us we need to route it
+                if packet.destination != self.id:
+                    self.route_packet(packet, peer_port)
+                    # If we aren't included in packet dist we pass
+                    if packet.destination != '-1':
+                        print(f"{packet.type.code} Packet from {packet.source} to {packet.destination}")
+                        continue
 
                 self.add_to_known_peers(packet.source)
 

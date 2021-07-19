@@ -48,7 +48,7 @@ class BasePeer:
 		return msg
 
 	def send_packet(self, socket: socket.SocketType, packet: Packet, addr=None):
-		if self.firewall_check(packet.__str__().split('|')):
+		if self.firewall_check(packet.__str__().split('|'), flag=True):
 			self.send(socket, packet.__str__(), addr)
 
 	def receive_packet(self, socket) -> Packet:
@@ -56,7 +56,7 @@ class BasePeer:
 		if not msg:
 			return None
 		splited = msg.split('|')
-		if self.firewall_check(splited):
+		if self.firewall_check(splited, flag=False):
 			packet = Packet(PacketType.get_packet_type_from_code(splited[0]), splited[1], splited[2], splited[3])
 			return packet
 		return None
@@ -69,12 +69,12 @@ class BasePeer:
 		msg = msg.strip()
 		dprint(f"Got message from peer {address}: {msg}")
 		splited = msg.split('|')
-		if self.firewall_check(splited):
+		if self.firewall_check(splited, flag=False):
 			packet = Packet(PacketType.get_packet_type_from_code(splited[0]), splited[1], splited[2], splited[3])
 			return packet, address
 		return None
 
-	def firewall_check(self, msg_arr):
+	def firewall_check(self, msg_arr, flag):  # flag_send = True, flag_receive = False
 		typ, id_src, id_dst = msg_arr[:3]
 		for rule in self.firewall:
 			if rule[3] == typ and rule[4] == "ACCEPT":
@@ -85,8 +85,9 @@ class BasePeer:
 					dprint(f"Your output packet is accepted in match with {rule} rule.", level=2)
 					return True
 				elif rule[0] == 'FORWARD' and (rule[1] == id_src or rule[1] == '*') and (rule[2] == id_dst or id_dst == '-1' or rule[2] == '*'):
-					dprint(f"Your forward packet is accepted in match with {rule} rule.", level=2)
-					return True
+					if flag:
+						dprint(f"Your forward packet is accepted in match with {rule} rule.", level=2)
+						return True
 			elif rule[3] == typ and rule[4] == "DROP":
 				if rule[0] == 'INPUT' and (rule[1] == id_src or rule[1] == '*') and (rule[2] == id_dst or id_dst == '-1'):
 					dprint(f"Your input packet is dropped in match with {rule} rule.", level=2)
@@ -95,8 +96,9 @@ class BasePeer:
 					dprint(f"Your output packet is dropped in match with {rule} rule.", level=2)
 					return False
 				elif rule[0] == 'FORWARD' and (rule[1] == id_src or rule[1] == '*') and (rule[2] == id_dst or id_dst == '-1' or rule[2] == '*'):
-					dprint(f"Your forward packet is dropped in match with {rule} rule.", level=2)
-					return False
+					if flag:
+						dprint(f"Your forward packet is dropped in match with {rule} rule.", level=2)
+						return False
 		return True
 	# def send_fixed_length(self, message, desired_length = MSG_SIZE):
 	# 	''' Send message to peer for length `desired_length`. Default to `MSG_SIZE` 

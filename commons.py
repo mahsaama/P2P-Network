@@ -2,7 +2,7 @@
 from Packet import Packet, PacketType
 import socket
 
-LOG_LEVEL = 3	# higher number -> more log
+LOG_LEVEL = 2	# higher number -> more log
 MSG_SIZE = 1024
 
 class bcolors:

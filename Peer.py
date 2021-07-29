@@ -227,15 +227,15 @@ class Peer(BaseSenderReceiver):
 					response_packet = Packet(PacketType.ROUTING_RESPONSE, self.id, packet.source, self.id)
 					self.route_packet(response_packet, peer_port)
 
-				elif packet.type == PacketType.ROUTING_RESPONSE:
+				elif packet.type == PacketType.ROUTING_RESPONSE and self.current_chatroom == None:
 					print(packet.data)
 
-				elif packet.type == PacketType.DESTINATION_NOT_FOUND:
+				elif packet.type == PacketType.DESTINATION_NOT_FOUND and self.current_chatroom == None:
 					print(packet.data)
 
 				elif packet.type == PacketType.MESSAGE:
 					# handling Salam message
-					if packet.data.startswith('SALAM:'):
+					if packet.data.startswith('SALAM:') and self.current_chatroom == None:
 						hello_msg = packet.data.removeprefix('SALAM:').strip()
 						if re.fullmatch('Salam Salam Sad Ta Salam', hello_msg, flags=re.IGNORECASE):
 							response_msg = "Hezaro Sisad Ta Salam"

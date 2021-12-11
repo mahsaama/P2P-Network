@@ -1,10 +1,10 @@
-# Computer-Network-ce443
+# Peer to Peer network
 
-Summer 1400/2021
-
-- Mahsa Amani
-- Mehraneh Najafi
-- Saba Hashemi
+| Name	         |Student_Number|
+|----------------|--------------|
+| Mahsa Amani	   |97105769      |
+| Saba Hashemi	 |97100581      |
+| Mehraneh Najafi|97104707      |
 
 ## About
 
